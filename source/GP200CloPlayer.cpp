@@ -281,10 +281,37 @@ void GP200CloPlayer::setVolumeControl (float value) noexcept
     volumeControl = juce::jlimit (0.0f, 100.0f, value);
 }
 
-float GP200CloPlayer::controlToLinear (float control) noexcept
+float GP200CloPlayer::gainControlToLinear (float visibleControl) noexcept
 {
-    // Recovered from firmware 1.8.0 wrapper around the SnapTone core:
-    // exp(-3.986313819885254 + control * 0.07972627133131027)
+    // GP-200 V1.8.0: the SnapTone wrapper applies an exponential law to an
+    // internal gain-control value. Physical-GP-200 measurements with the same
+    // CLO at visible Gain 25/50/75/100 show that the visible UI value is first
+    // mapped to that internal value by an essentially linear transform:
+    //
+    // internalGain = 0.69311597 * visibleGain + 25.201331
+    //
+    // Measured equivalents:
+    //   UI 25  -> internal 42.5287
+    //   UI 50  -> internal 59.8574
+    //   UI 75  -> internal 77.1860
+    //   UI 100 -> internal 94.5122
+    //
+    // Then the firmware wrapper law is applied:
+    // linear = exp(-3.986313819885254 + internalGain * 0.07972627133131027)
+    constexpr float uiToInternalSlope  = 0.69311597f;
+    constexpr float uiToInternalOffset = 25.201331f;
+    constexpr float firmwareOffset     = -3.986313819885254f;
+    constexpr float firmwareSlope      =  0.07972627133131027f;
+
+    const float internalGain = uiToInternalSlope * visibleControl + uiToInternalOffset;
+    return std::exp (firmwareOffset + internalGain * firmwareSlope);
+}
+
+float GP200CloPlayer::volumeControlToLinear (float control) noexcept
+{
+    // Volume is kept on the direct firmware control law. It is post-CLO and
+    // does not alter the nonlinear excitation, so any remaining absolute-level
+    // offset can be compensated independently during validation.
     constexpr float offset = -3.986313819885254f;
     constexpr float slope  =  0.07972627133131027f;
     return std::exp (offset + control * slope);
@@ -292,12 +319,12 @@ float GP200CloPlayer::controlToLinear (float control) noexcept
 
 float GP200CloPlayer::getGainLinear() const noexcept
 {
-    return controlToLinear (gainControl);
+    return gainControlToLinear (gainControl);
 }
 
 float GP200CloPlayer::getVolumeLinear() const noexcept
 {
-    return controlToLinear (volumeControl);
+    return volumeControlToLinear (volumeControl);
 }
 
 float GP200CloPlayer::waveshape (float x) const noexcept

@@ -32,11 +32,17 @@ Bass / Middle / Treble from the GP-200 SnapTone wrapper are **not applied**. Thi
 - Asymmetric exponential waveshaper using `Ppos`, `Pneg`, `Kpos`, `Kneg` from the CLO.
 - GP-200 V1.8.0 4x all-pass oversampling coefficients.
 - Gain before the CLO core and Volume after it.
-- Gain/Volume control law recovered from the firmware:
+- The firmware exponential control law.
+- Experimental GP-200 visible-Gain -> internal-DSP mapping, validated at visible Gain 25, 50, 75 and 100:
 
 ```text
-linear = exp(-3.986313819885254 + control * 0.07972627133131027)
+internalGain = 0.69311597 * visibleGain + 25.201331
+gainLinear   = exp(-3.986313819885254 + internalGain * 0.07972627133131027)
+
+volumeLinear = exp(-3.986313819885254 + visibleVolume * 0.07972627133131027)
 ```
+
+The Gain mapping is intentionally kept separate from the CLO model itself. It reproduces the nonlinear excitation observed on a physical GP-200. Volume is post-CLO and remains on the direct firmware law.
 
 - Mono and stereo VST3 operation. Stereo channels use independent DSP state.
 - The loaded CLO is embedded in the plug-in state, so DAW sessions restore it without needing the original file path.
@@ -84,7 +90,7 @@ The included workflow builds the Windows x64 VST3 on every push and pull request
 1. Set the DAW project/sample rate to **44.1 kHz**.
 2. Insert `CloPlayer.vst3` on an audio track.
 3. Click **Load CLO...** and select a GP-200 CLO file.
-4. Set **Gain** and **Volume**. `50` is approximately unity for each external control.
+4. Set **Gain** and **Volume** using the same visible 0..100 values as the GP-200. Gain is internally remapped to the measured GP-200 DSP scale; Volume stays on the direct firmware law.
 5. Process audio normally.
 
 ## Research basis

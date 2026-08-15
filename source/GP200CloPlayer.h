@@ -30,8 +30,10 @@ public:
 
     bool isLoaded() const noexcept { return loaded; }
 
-    // GP-200 SnapTone controls, nominal range 0..100. 50 is approximately
-    // unity. These are external to the CLO model itself.
+    // GP-200 SnapTone controls, nominal visible range 0..100.
+    // Gain uses the experimentally reconstructed GP-200 UI->DSP mapping before
+    // the firmware exponential law. Volume keeps the direct firmware law.
+    // These controls are external to the CLO model itself.
     void setGainControl (float value) noexcept;
     void setVolumeControl (float value) noexcept;
 
@@ -114,7 +116,8 @@ private:
         float process (float x) noexcept;
     };
 
-    static float controlToLinear (float control) noexcept;
+    static float gainControlToLinear (float visibleControl) noexcept;
+    static float volumeControlToLinear (float control) noexcept;
     static double readDoubleLE (const std::uint8_t* p) noexcept;
     static float readFloatLE (const std::uint8_t* p) noexcept;
     static std::uint32_t readU32LE (const std::uint8_t* p) noexcept;
