@@ -20,7 +20,7 @@ CloPlayerAudioProcessorEditor::CloPlayerAudioProcessorEditor (CloPlayerAudioProc
     title.setJustificationType (juce::Justification::centredLeft);
     addAndMakeVisible (title);
 
-    subtitle.setText ("GP-200 CLO playback core · Gain → CLO → Volume", juce::dontSendNotification);
+    subtitle.setText ("GP-200 + Hotone/Ampero CLO · Gain → CLO → Volume", juce::dontSendNotification);
     subtitle.setFont (juce::FontOptions (14.0f));
     subtitle.setColour (juce::Label::textColourId, juce::Colours::lightgrey);
     addAndMakeVisible (subtitle);
@@ -102,7 +102,7 @@ void CloPlayerAudioProcessorEditor::resized()
 void CloPlayerAudioProcessorEditor::chooseCloFile()
 {
     fileChooser = std::make_unique<juce::FileChooser> (
-        "Load GP-200 CLO", juce::File(), "*.clo");
+        "Load CLO", juce::File(), "*.clo");
 
     fileChooser->launchAsync (juce::FileBrowserComponent::openMode
                               | juce::FileBrowserComponent::canSelectFiles,
@@ -145,11 +145,12 @@ void CloPlayerAudioProcessorEditor::updateStatus()
 
     if (! processor.hasLoadedClo())
     {
-        statusLabel.setText ("Load a GP-200 1024-tap CLO to start processing.", juce::dontSendNotification);
+        statusLabel.setText ("Load a GP-200 B1024 or Hotone/Ampero B2048 CLO.", juce::dontSendNotification);
         statusLabel.setColour (juce::Label::textColourId, juce::Colours::lightgrey);
         return;
     }
 
-    statusLabel.setText ("ACTIVE · 44.1 kHz · EQ intentionally not applied", juce::dontSendNotification);
+    statusLabel.setText ("ACTIVE · " + processor.getLoadedCloFormatText() + " · 44.1 kHz · GP-200 Gain mapping",
+                         juce::dontSendNotification);
     statusLabel.setColour (juce::Label::textColourId, juce::Colours::lightgreen);
 }

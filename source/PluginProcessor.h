@@ -46,6 +46,7 @@ public:
     bool hasLoadedClo() const noexcept { return cloLoaded.load(); }
     juce::String getLoadedCloName() const;
     juce::String getLastError() const;
+    juce::String getLoadedCloFormatText() const;
     bool isNativeSampleRate() const noexcept;
     double getCurrentSampleRate() const noexcept { return currentSampleRate.load(); }
 

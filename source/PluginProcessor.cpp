@@ -175,6 +175,24 @@ juce::String CloPlayerAudioProcessor::getLastError() const
     return lastError;
 }
 
+juce::String CloPlayerAudioProcessor::getLoadedCloFormatText() const
+{
+    const juce::ScopedLock lock (modelLock);
+    if (! cloLoaded.load() || players[0] == nullptr || ! players[0]->isLoaded())
+        return {};
+
+    const auto& info = players[0]->getModelInfo();
+    switch (players[0]->getFormat())
+    {
+        case gp200::GP200CloPlayer::CloFormat::gp200B1024:
+            return "GP-200 CLO · A 128 · B 1024";
+        case gp200::GP200CloPlayer::CloFormat::hotoneAmperoB2048:
+            return "Hotone / Ampero CLO · A 128 · B 2048";
+        default:
+            return "CLO · A " + juce::String (info.countA) + " · B " + juce::String (info.countB);
+    }
+}
+
 void CloPlayerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();

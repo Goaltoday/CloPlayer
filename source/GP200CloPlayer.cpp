@@ -10,7 +10,7 @@ namespace
 {
 constexpr std::size_t minimumHeaderSize = 0x88;
 constexpr std::size_t coefficientBase = 0x88;
-constexpr std::uint32_t gp200MaximumB = 1024;
+constexpr std::uint32_t maximumSupportedB = 2048;
 
 // Coefficients recovered from GP-200 firmware 1.8.0.
 constexpr float up1Branch0[] = {
@@ -231,8 +231,18 @@ juce::Result GP200CloPlayer::loadFromMemory (const void* rawData, std::size_t si
     if (info.countA == 0 || info.countB == 0)
         return juce::Result::fail ("CLO contains an empty FIR section.");
 
-    if (info.countB > gp200MaximumB)
-        return juce::Result::fail ("CLO B section exceeds the GP-200 runtime maximum of 1024 taps.");
+    // The validated Valeton/Hotone CLO family uses the same core layout with
+    // A=128 taps. GP-200 stores B=1024 while Ampero/Hotone CLO files use
+    // B=2048. Keep the accepted layouts explicit rather than accepting an
+    // arbitrary FIR length.
+    if (info.startA != 0 || info.countA != 128 || info.startB != 128)
+        return juce::Result::fail ("Unsupported CLO FIR layout; expected A=128 followed by B.");
+
+    if (info.countB != 1024 && info.countB != 2048)
+        return juce::Result::fail ("Unsupported CLO B length; expected 1024 (GP-200) or 2048 (Hotone/Ampero) taps.");
+
+    if (info.countB > maximumSupportedB)
+        return juce::Result::fail ("CLO B section exceeds the supported 2048-tap maximum.");
 
     const std::uint64_t lastA = static_cast<std::uint64_t> (info.startA) + info.countA;
     const std::uint64_t lastB = static_cast<std::uint64_t> (info.startB) + info.countB;

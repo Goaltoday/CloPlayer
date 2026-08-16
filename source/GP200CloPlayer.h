@@ -9,7 +9,7 @@
 namespace gp200
 {
 
-// Functional GP-200 SnapTone/CLO player for firmware 1.8.0 research.
+// Functional Valeton/Hotone CLO player based on the GP-200/Ampero research.
 //
 // Deliberately implements only:
 //   Gain -> CLO core -> Volume
@@ -52,6 +52,13 @@ public:
     // player per channel.
     void processBufferOffline (juce::AudioBuffer<float>& buffer) noexcept;
 
+    enum class CloFormat
+    {
+        unknown,
+        gp200B1024,
+        hotoneAmperoB2048
+    };
+
     struct ModelInfo
     {
         std::uint32_t startA{};
@@ -65,6 +72,13 @@ public:
     };
 
     const ModelInfo& getModelInfo() const noexcept { return info; }
+    CloFormat getFormat() const noexcept
+    {
+        if (! loaded) return CloFormat::unknown;
+        if (info.countB == 1024) return CloFormat::gp200B1024;
+        if (info.countB == 2048) return CloFormat::hotoneAmperoB2048;
+        return CloFormat::unknown;
+    }
 
 private:
     struct Biquad

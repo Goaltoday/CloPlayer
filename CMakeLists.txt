@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(CloPlayer VERSION 1.1.0 LANGUAGES C CXX)
+project(CloPlayer VERSION 1.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,7 +31,7 @@ juce_add_plugin(CloPlayer
     PLUGIN_CODE ClP1
     FORMATS VST3
     PRODUCT_NAME "CloPlayer"
-    DESCRIPTION "GP-200 CLO/SnapTone model player"
+    DESCRIPTION "GP-200 and Hotone/Ampero CLO model player"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE
