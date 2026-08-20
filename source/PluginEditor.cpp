@@ -60,6 +60,7 @@ CloPlayerAudioProcessorEditor::CloPlayerAudioProcessorEditor (CloPlayerAudioProc
     volumeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         processor.getParameters(), "volume", volumeSlider);
 
+    updateArrowState();
     updateStatus();
     startTimerHz (4);
 }
@@ -130,22 +131,73 @@ void CloPlayerAudioProcessorEditor::chooseCloFile()
                                           "Could not load CLO",
                                           result.getErrorMessage());
                                   }
+                                  else
+                                  {
+                                      rebuildCloSequence (file);
+                                  }
                                   updateStatus();
                               });
 }
 
 
+void CloPlayerAudioProcessorEditor::rebuildCloSequence (const juce::File& selectedFile)
+{
+    cloSequence.clearQuick();
+    currentCloIndex = -1;
+
+    const auto folder = selectedFile.getParentDirectory();
+    if (! folder.isDirectory())
+    {
+        updateArrowState();
+        return;
+    }
+
+    folder.findChildFiles (cloSequence, juce::File::findFiles, false, "*.clo");
+
+    for (int i = 0; i < cloSequence.size() - 1; ++i)
+        for (int j = i + 1; j < cloSequence.size(); ++j)
+            if (cloSequence.getReference (i).getFileName().compareNatural (cloSequence.getReference (j).getFileName()) > 0)
+                cloSequence.swap (i, j);
+
+    for (int i = 0; i < cloSequence.size(); ++i)
+    {
+        if (cloSequence.getReference (i) == selectedFile)
+        {
+            currentCloIndex = i;
+            break;
+        }
+    }
+
+    updateArrowState();
+}
+
+void CloPlayerAudioProcessorEditor::updateArrowState()
+{
+    previousButton.setEnabled (currentCloIndex > 0);
+    nextButton.setEnabled (currentCloIndex >= 0 && currentCloIndex + 1 < cloSequence.size());
+}
+
 void CloPlayerAudioProcessorEditor::loadAdjacentClo (int direction)
 {
-    const auto result = processor.loadAdjacentClo (direction);
+    if (currentCloIndex < 0)
+        return;
+
+    const auto targetIndex = currentCloIndex + (direction < 0 ? -1 : 1);
+    if (! juce::isPositiveAndBelow (targetIndex, cloSequence.size()))
+        return;
+
+    const auto result = processor.loadCloFile (cloSequence.getReference (targetIndex));
     if (result.failed())
     {
         juce::AlertWindow::showMessageBoxAsync (
             juce::MessageBoxIconType::WarningIcon,
             "Could not load CLO",
             result.getErrorMessage());
+        return;
     }
 
+    currentCloIndex = targetIndex;
+    updateArrowState();
     updateStatus();
 }
 
@@ -158,9 +210,6 @@ void CloPlayerAudioProcessorEditor::updateStatus()
 {
     fileLabel.setText (processor.hasLoadedClo() ? processor.getLoadedCloName() : "No CLO loaded",
                        juce::dontSendNotification);
-
-    previousButton.setEnabled (processor.canLoadPreviousClo());
-    nextButton.setEnabled (processor.canLoadNextClo());
 
     if (! processor.isNativeSampleRate())
     {

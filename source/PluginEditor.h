@@ -17,6 +17,8 @@ private:
     void timerCallback() override;
     void chooseCloFile();
     void loadAdjacentClo (int direction);
+    void rebuildCloSequence (const juce::File& selectedFile);
+    void updateArrowState();
     void updateStatus();
 
     CloPlayerAudioProcessor& processor;
@@ -37,6 +39,9 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> volumeAttachment;
     std::unique_ptr<juce::FileChooser> fileChooser;
+
+    juce::Array<juce::File> cloSequence;
+    int currentCloIndex = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CloPlayerAudioProcessorEditor)
 };
