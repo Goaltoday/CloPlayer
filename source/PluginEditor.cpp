@@ -25,8 +25,14 @@ CloPlayerAudioProcessorEditor::CloPlayerAudioProcessorEditor (CloPlayerAudioProc
     subtitle.setColour (juce::Label::textColourId, juce::Colours::lightgrey);
     addAndMakeVisible (subtitle);
 
+    addAndMakeVisible (previousButton);
+    previousButton.onClick = [this] { loadAdjacentClo (-1); };
+
     addAndMakeVisible (loadButton);
     loadButton.onClick = [this] { chooseCloFile(); };
+
+    addAndMakeVisible (nextButton);
+    nextButton.onClick = [this] { loadAdjacentClo (1); };
 
     fileLabel.setText ("No CLO loaded", juce::dontSendNotification);
     fileLabel.setJustificationType (juce::Justification::centredLeft);
@@ -77,7 +83,11 @@ void CloPlayerAudioProcessorEditor::resized()
     area.removeFromTop (18);
 
     auto fileRow = area.removeFromTop (34);
+    previousButton.setBounds (fileRow.removeFromLeft (34));
+    fileRow.removeFromLeft (8);
     loadButton.setBounds (fileRow.removeFromLeft (120));
+    fileRow.removeFromLeft (8);
+    nextButton.setBounds (fileRow.removeFromLeft (34));
     fileRow.removeFromLeft (12);
     fileLabel.setBounds (fileRow);
 
@@ -124,6 +134,21 @@ void CloPlayerAudioProcessorEditor::chooseCloFile()
                               });
 }
 
+
+void CloPlayerAudioProcessorEditor::loadAdjacentClo (int direction)
+{
+    const auto result = processor.loadAdjacentClo (direction);
+    if (result.failed())
+    {
+        juce::AlertWindow::showMessageBoxAsync (
+            juce::MessageBoxIconType::WarningIcon,
+            "Could not load CLO",
+            result.getErrorMessage());
+    }
+
+    updateStatus();
+}
+
 void CloPlayerAudioProcessorEditor::timerCallback()
 {
     updateStatus();
@@ -133,6 +158,9 @@ void CloPlayerAudioProcessorEditor::updateStatus()
 {
     fileLabel.setText (processor.hasLoadedClo() ? processor.getLoadedCloName() : "No CLO loaded",
                        juce::dontSendNotification);
+
+    previousButton.setEnabled (processor.canLoadPreviousClo());
+    nextButton.setEnabled (processor.canLoadNextClo());
 
     if (! processor.isNativeSampleRate())
     {

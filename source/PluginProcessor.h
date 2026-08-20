@@ -42,10 +42,13 @@ public:
 
     juce::Result loadCloFile (const juce::File& file);
     juce::Result loadCloData (const void* data, size_t size, const juce::String& displayName);
+    juce::Result loadAdjacentClo (int direction);
 
     bool hasLoadedClo() const noexcept { return cloLoaded.load(); }
     juce::String getLoadedCloName() const;
     juce::String getLastError() const;
+    bool canLoadPreviousClo() const;
+    bool canLoadNextClo() const;
     juce::String getLoadedCloFormatText() const;
     bool isNativeSampleRate() const noexcept;
     double getCurrentSampleRate() const noexcept { return currentSampleRate.load(); }
@@ -53,6 +56,9 @@ public:
 private:
     static constexpr double nativeSampleRate = 44100.0;
 
+    juce::Array<juce::File> getSiblingCloFiles() const;
+    int getCurrentCloIndex (const juce::Array<juce::File>& files) const;
+    bool canLoadAdjacentInternal (int direction) const;
     void reloadPlayersFromStoredData();
     void clearPlayers();
 
@@ -61,6 +67,7 @@ private:
 
     juce::MemoryBlock cloData;
     juce::String cloName;
+    juce::File currentCloFile;
     juce::String lastError;
     mutable juce::CriticalSection modelLock;
 

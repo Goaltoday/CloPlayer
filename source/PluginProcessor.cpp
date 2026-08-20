@@ -11,6 +11,7 @@ constexpr auto volumeId = "volume";
 constexpr auto stateType = "CloPlayerState";
 constexpr auto cloNameProperty = "cloName";
 constexpr auto cloDataProperty = "cloDataBase64";
+constexpr auto cloPathProperty = "cloPath";
 }
 
 CloPlayerAudioProcessor::CloPlayerAudioProcessor()
@@ -36,6 +37,75 @@ juce::AudioProcessorValueTreeState::ParameterLayout CloPlayerAudioProcessor::cre
         juce::NormalisableRange<float> { 0.0f, 100.0f, 0.01f }, 50.0f));
 
     return layout;
+}
+
+
+juce::Array<juce::File> CloPlayerAudioProcessor::getSiblingCloFiles() const
+{
+    const juce::ScopedLock lock (modelLock);
+
+    juce::Array<juce::File> files;
+    if (! currentCloFile.existsAsFile())
+        return files;
+
+    const auto parent = currentCloFile.getParentDirectory();
+    if (! parent.isDirectory())
+        return files;
+
+    parent.findChildFiles (files, juce::File::findFiles, false, "*.clo");
+
+    for (int i = 0; i < files.size() - 1; ++i)
+        for (int j = i + 1; j < files.size(); ++j)
+            if (files.getReference (i).getFileName().compareNatural (files.getReference (j).getFileName()) > 0)
+                files.swap (i, j);
+
+    return files;
+}
+
+int CloPlayerAudioProcessor::getCurrentCloIndex (const juce::Array<juce::File>& files) const
+{
+    const juce::ScopedLock lock (modelLock);
+    for (int i = 0; i < files.size(); ++i)
+        if (files.getReference (i) == currentCloFile)
+            return i;
+
+    return -1;
+}
+
+bool CloPlayerAudioProcessor::canLoadAdjacentInternal (int direction) const
+{
+    const auto files = getSiblingCloFiles();
+    const auto index = getCurrentCloIndex (files);
+    if (index < 0)
+        return false;
+
+    const auto target = index + (direction < 0 ? -1 : 1);
+    return juce::isPositiveAndBelow (target, files.size());
+}
+
+bool CloPlayerAudioProcessor::canLoadPreviousClo() const
+{
+    return canLoadAdjacentInternal (-1);
+}
+
+bool CloPlayerAudioProcessor::canLoadNextClo() const
+{
+    return canLoadAdjacentInternal (1);
+}
+
+juce::Result CloPlayerAudioProcessor::loadAdjacentClo (int direction)
+{
+    const auto files = getSiblingCloFiles();
+    const auto index = getCurrentCloIndex (files);
+    if (index < 0)
+        return juce::Result::fail ("Sequential browsing is only available for CLO files loaded from disk.");
+
+    const auto target = index + (direction < 0 ? -1 : 1);
+    if (! juce::isPositiveAndBelow (target, files.size()))
+        return juce::Result::fail (direction < 0 ? "There is no previous CLO in this folder."
+                                                  : "There is no next CLO in this folder.");
+
+    return loadCloFile (files.getReference (target));
 }
 
 void CloPlayerAudioProcessor::prepareToPlay (double sampleRate, int)
@@ -108,7 +178,13 @@ juce::Result CloPlayerAudioProcessor::loadCloFile (const juce::File& file)
     if (! file.loadFileAsData (data))
         return juce::Result::fail ("Could not read the selected CLO file.");
 
-    return loadCloData (data.getData(), data.getSize(), file.getFileName());
+    auto result = loadCloData (data.getData(), data.getSize(), file.getFileName());
+    if (result.wasOk())
+    {
+        const juce::ScopedLock lock (modelLock);
+        currentCloFile = file;
+    }
+    return result;
 }
 
 juce::Result CloPlayerAudioProcessor::loadCloData (const void* data, size_t size, const juce::String& displayName)
@@ -139,6 +215,9 @@ juce::Result CloPlayerAudioProcessor::loadCloData (const void* data, size_t size
     lastError.clear();
     cloLoaded.store (true);
 
+    if (displayName != currentCloFile.getFileName())
+        currentCloFile = {};
+
     suspendProcessing (false);
     return juce::Result::ok();
 }
@@ -148,6 +227,7 @@ void CloPlayerAudioProcessor::clearPlayers()
     for (auto& player : players)
         player = std::make_unique<gp200::GP200CloPlayer>();
     cloLoaded.store (false);
+    currentCloFile = {};
 }
 
 void CloPlayerAudioProcessor::reloadPlayersFromStoredData()
@@ -200,6 +280,7 @@ void CloPlayerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     const juce::ScopedLock lock (modelLock);
     state.setProperty (cloNameProperty, cloName, nullptr);
     state.setProperty (cloDataProperty, cloData.getSize() == 0 ? juce::String() : cloData.toBase64Encoding(), nullptr);
+    state.setProperty (cloPathProperty, currentCloFile.getFullPathName(), nullptr);
 
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
@@ -217,9 +298,11 @@ void CloPlayerAudioProcessor::setStateInformation (const void* data, int sizeInB
 
     const auto restoredName = state.getProperty (cloNameProperty).toString();
     const auto restoredBase64 = state.getProperty (cloDataProperty).toString();
+    const auto restoredPath = state.getProperty (cloPathProperty).toString();
 
     state.removeProperty (cloNameProperty, nullptr);
     state.removeProperty (cloDataProperty, nullptr);
+    state.removeProperty (cloPathProperty, nullptr);
     parameters.replaceState (state);
 
     if (restoredBase64.isEmpty())
@@ -230,6 +313,16 @@ void CloPlayerAudioProcessor::setStateInformation (const void* data, int sizeInB
         return;
 
     loadCloData (restored.getData(), restored.getSize(), restoredName);
+
+    if (restoredPath.isNotEmpty())
+    {
+        const juce::File restoredFile (restoredPath);
+        if (restoredFile.existsAsFile())
+        {
+            const juce::ScopedLock lock (modelLock);
+            currentCloFile = restoredFile;
+        }
+    }
 }
 
 juce::AudioProcessorEditor* CloPlayerAudioProcessor::createEditor()

@@ -16,13 +16,16 @@ public:
 private:
     void timerCallback() override;
     void chooseCloFile();
+    void loadAdjacentClo (int direction);
     void updateStatus();
 
     CloPlayerAudioProcessor& processor;
 
     juce::Label title;
     juce::Label subtitle;
+    juce::TextButton previousButton { "<" };
     juce::TextButton loadButton { "Load CLO..." };
+    juce::TextButton nextButton { ">" };
     juce::Label fileLabel;
     juce::Label statusLabel;
 
